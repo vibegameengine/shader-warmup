@@ -6,7 +6,9 @@ A lightweight utility for pre-compiling Three.js shaders to avoid runtime stutte
 
 *   **Registry System**: Decoupled resource registration so assets can be registered from anywhere.
 *   **Invisible Warmup**: Renders objects at microscopic scale to force shader compilation without visual artifacts.
-*   **Ready Signal**: Provides a callback when compilation is complete, allowing you to hide a loading screen.
+*   **ShaderWarmup**: Owns mount → compile → unmount and reports when a splash can close.
+*   **Variant-aware**: Supports ordinary mesh and `InstancedMesh` programs.
+*   **Recovery-aware**: Re-runs after late registry entries or WebGL context restoration.
 
 ## Installation
 
@@ -31,6 +33,14 @@ ShaderWarmupRegistry.register(
   shipMaterial
 );
 
+// Use the real object type when a material is rendered through InstancedMesh.
+ShaderWarmupRegistry.register(
+  'level-up-spark',
+  sparkGeometry,
+  sparkMaterial,
+  { drawMode: 'instanced' },
+);
+
 ShaderWarmupRegistry.register(
   'enemy-bot',
   botGeometry,
@@ -38,13 +48,15 @@ ShaderWarmupRegistry.register(
 );
 ```
 
-### 2. Add to Canvas
+### 2. Add one boundary to Canvas
 
-Place the `ShaderWarmup` component inside your `<Canvas>`. It will automatically fetch registered resources. Use `ReadySignal` to know when it's safe to start the game.
+Place `ShaderWarmup` inside your `<Canvas>`. It fetches the central
+registry, compiles invisible resources, waits for the next real frame, then
+unmounts them without disposing your shared assets.
 
 ```tsx
 import { Canvas } from '@react-three/fiber';
-import { ShaderWarmup, ReadySignal } from '@vibegameengine/shader-warmup';
+import { ShaderWarmup } from '@vibegameengine/shader-warmup';
 import { useState } from 'react';
 
 const GameScene = () => {
@@ -55,11 +67,10 @@ const GameScene = () => {
       {!isReady && <LoadingScreen />}
       
       <Canvas>
-        {/* Signals 'true' after first frame render + small delay */}
-        <ReadySignal setReady={setIsReady} />
-        
-        {/* Renders all registered resources invisibly */}
-        <ShaderWarmup />
+        <ShaderWarmup
+          onWarming={() => setIsReady(false)}
+          onReady={() => setIsReady(true)}
+        />
         
         {/* Your actual game content */}
         <GameWorld />
@@ -69,12 +80,23 @@ const GameScene = () => {
 };
 ```
 
-### 3. Advanced Usage (Custom Resources)
+The boundary re-warms automatically when a new resource enters its registry. In
+development, registering a different resource under an existing ID logs a warning
+instead of silently replacing the first shader variant.
+
+`ShaderWarmup` warms registered geometry/material draw variants. Keep runtime
+effect logic separate, and register every real mesh or instanced-mesh variant it
+can create before the Canvas mounts.
+
+### 3. Advanced Usage (Custom Resource Subset)
 
 You can also pass a specific list of resources directly to the component, bypassing the global registry.
 
 ```tsx
 <ShaderWarmup resources={[
-  { id: 'custom-1', geometry: geo1, material: mat1 }
-]} />
+  { id: 'custom-1', geometry: geo1, material: mat1, drawMode: 'mesh' }
+]} onReady={() => setIsReady(true)} />
 ```
+
+`ShaderWarmupBoundary` and `ReadySignal` remain exported for backwards
+compatibility; new integrations use `ShaderWarmup`.
