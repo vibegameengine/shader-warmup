@@ -1,6 +1,6 @@
 {
   "name": "@vibegameengine/shader-warmup",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Pre-compile Three.js shaders to prevent runtime stutter (jank) in React Three Fiber apps",
   "license": "MIT",
   "keywords": [
@@ -29,14 +29,19 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.es.js",
-      "require": "./dist/index.umd.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.umd.js"
     }
   },
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch"
+  },
+  "peerDependencies": {
+    "@react-three/fiber": ">=8",
+    "react": ">=18",
+    "three": ">=0.161"
   },
   "devDependencies": {
     "@react-three/fiber": "8.15.16",
